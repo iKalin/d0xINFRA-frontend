@@ -89,7 +89,7 @@
 
 (defn initialize-db [default-db localstorage]
   (let [web3 (if constants/provides-web3?
-               (aget js/window "cljs_web3")
+               (aget js/window "web3")
                (web3/create-web3 (:node-url default-db)))]
     (as-> default-db db
           (merge-with #(if (map? %1) (merge-with merge %1 %2) %2) db localstorage)

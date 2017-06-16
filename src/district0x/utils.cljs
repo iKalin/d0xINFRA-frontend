@@ -1,5 +1,6 @@
 (ns district0x.utils
   (:require
+    [cemerick.url :as url]
     [cljs-time.coerce :refer [to-date-time to-long to-epoch to-local-date-time]]
     [cljs-time.core :as t :refer [date-time to-default-time-zone]]
     [cljs-time.format :as time-format]
@@ -8,8 +9,7 @@
     [district0x.big-number :as bn]
     [goog.string :as gstring]
     [goog.string.format]
-    [medley.core :as medley]
-    [cemerick.url :as url]))
+    [medley.core :as medley]))
 
 (defn get-window-width-size [width]
   (cond
