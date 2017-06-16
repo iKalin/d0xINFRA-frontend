@@ -14,7 +14,9 @@
     [clojure.string :as string]
     [day8.re-frame.async-flow-fx]
     [day8.re-frame.http-fx]
+    [district0x.big-number :as bn]
     [district0x.constants :as constants]
+    [district0x.dispatch-fx]
     [district0x.interval-fx]
     [district0x.utils :as u]
     [district0x.window-fx]
@@ -23,8 +25,7 @@
     [madvas.re-frame.google-analytics-fx]
     [madvas.re-frame.web3-fx]
     [medley.core :as medley]
-    [re-frame.core :as re-frame :refer [reg-event-db reg-event-fx inject-cofx path trim-v after debug reg-fx console dispatch dispatch-sync]]
-    [district0x.big-number :as bn]))
+    [re-frame.core :as re-frame :refer [reg-event-db reg-event-fx inject-cofx path trim-v after debug reg-fx console dispatch]]))
 
 (re-frame-storage/reg-co-fx! :contribution {:fx :localstorage :cofx :localstorage})
 
@@ -86,40 +87,45 @@
                                    (str (select-keys (last event) [:gas-used :gas-used-percent :transaction-hash
                                                                    :success?]))]})))))
 
-(defn provides-web3? []
-  (boolean (aget js/window "web3")))
-
 (defn initialize-db [default-db localstorage]
-  (let [web3 (if provides-web3?
-               (aget js/window "web3")
+  (let [web3 (if constants/provides-web3?
+               (aget js/window "cljs_web3")
                (web3/create-web3 (:node-url default-db)))]
     (as-> default-db db
           (merge-with #(if (map? %1) (merge-with merge %1 %2) %2) db localstorage)
-          (assoc db :provides-web3? (provides-web3?))
           (assoc db :web3 web3))))
 
 (reg-event-fx
   :district0x/initialize
   [interceptors (inject-cofx :localstorage)]
-  (fn [{:keys [localstorage]} [{:keys [:default-db :conversion-rates :first-dispatch]}]]
+  (fn [{:keys [localstorage]} [{:keys [:default-db :conversion-rates :effects]}]]
     (let [db (district0x.events/initialize-db default-db localstorage)]
       (merge
         {:db db
-         :dispatch-n (remove nil? [first-dispatch
-                                   (when conversion-rates
-                                     [:district0x/load-conversion-rates (:currencies conversion-rates)])])
          :ga/page-view [(u/current-location-hash)]
          :window/on-resize {:dispatch [:district0x.window/resized]
-                            :resize-interval 166}}
+                            :resize-interval 166}
+         :dispatch [:district0x/load-my-addresses]}
         (when conversion-rates
-          {:dispatch-interval {:dispatch [:district0x/load-conversion-rates (:currencies conversion-rates)]
+          {:district0x/dispatch-n [[:district0x/load-conversion-rates (:currencies conversion-rates)]]
+           :dispatch-interval {:dispatch [:district0x/load-conversion-rates (:currencies conversion-rates)]
                                :ms (or (:ms conversion-rates) 60000)
                                :db-path [:district0x/load-conversion-rates-interval]}})
-        (if (or provides-web3? (:load-node-addresses? default-db))
-          {:web3-fx.blockchain/fns
-           {:web3 (:web3 db)
-            :fns [[web3-eth/accounts :district0x/my-addresses-loaded [:district0x/blockchain-connection-error :initialize]]]}}
-          {:dispatch [:district0x/my-addresses-loaded []]})))))
+        effects))))
+
+(reg-event-fx
+  :district0x/load-my-addresses
+  interceptors
+  (fn [{:keys [db]}]
+    (if constants/provides-web3?
+      {:dispatch [:district0x/my-addresses-loaded (web3-eth/accounts (:web3 db))]}
+      (if (:load-node-addresses? db)
+        {:web3-fx.blockchain/fns
+         {:web3 (:web3 db)
+          :fns [[web3-eth/accounts
+                 [:district0x/my-addresses-loaded]
+                 [:district0x/blockchain-connection-error :initialize]]]}}
+        {:dispatch [:district0x/my-addresses-loaded []]}))))
 
 (reg-event-fx
   :district0x/load-smart-contracts
@@ -136,7 +142,7 @@
                            [:district0x.log/error :district0x/load-smart-contracts]))))}))
 
 (reg-event-fx
-  :district0x/unload-smart-contracts
+  :district0x/clear-smart-contracts
   interceptors
   (fn [{:keys [db]}]
     {:db (update db :smart-contracts (partial medley/map-kv
@@ -160,9 +166,8 @@
                                   {:instance (web3-eth/contract-at (:web3 db) code contract-address)})))]
         (merge
           {:db new-db
-           :dispatch-n (remove nil?
-                               [(when (all-contracts-loaded? new-db)
-                                  [:district0x/smart-contracts-loaded])])})))))
+           :district0x/dispatch-n [(when (all-contracts-loaded? new-db)
+                                     [:district0x/smart-contracts-loaded])]})))))
 
 (reg-event-fx
   :district0x/smart-contracts-loaded
@@ -185,7 +190,7 @@
   :district0x/watch-eth-balances
   interceptors
   (fn [{:keys [db]} [{:keys [:addresses :on-address-balance-loaded]
-                      :or {on-address-balance-loaded [:district0x/address-balance-loaded]}}]]
+                      :or {on-address-balance-loaded [:district0x/address-balance-loaded :eth]}}]]
     (when (seq addresses)
       {:web3-fx.blockchain/balances
        {:web3 (:web3 db)
@@ -197,9 +202,21 @@
                      [:district0x/blockchain-connection-error :district0x/watch-eth-balances]]}})))
 
 (reg-event-fx
+  :district0x/load-eth-balances
+  interceptors
+  (fn [{:keys [db]} [{:keys [:addresses :on-address-balance-loaded]
+                      :or {on-address-balance-loaded [:district0x/address-balance-loaded :eth]}}]]
+    (when (seq addresses)
+      {:web3-fx.blockchain/balances
+       {:web3 (:web3 db)
+        :addresses addresses
+        :dispatches [on-address-balance-loaded
+                     [:district0x/blockchain-connection-error :district0x/watch-token-balances]]}})))
+
+(reg-event-fx
   :district0x/watch-my-eth-balances
   interceptors
-  (fn [{:keys [db]} args]
+  (fn [{:keys [db]} [args]]
     (let [addresses (:my-addresses db)]
       {:dispatch [:district0x/watch-eth-balances (assoc args :addresses addresses)]})))
 
@@ -207,27 +224,40 @@
   :district0x/watch-token-balances
   interceptors
   (fn [{:keys [db]} [{:keys [:addresses :instance :token-code]}]]
-    {:web3-fx.blockchain/balances
-     {:web3 (:web3 db)
-      :watch? true
-      :blockchain-filter-opts "latest"
-      :db-path [:district0x/watch-token-balances]
-      :addresses addresses
-      :instance instance
-      :dispatches [[:district0x/address-balance-loaded token-code]
-                   [:district0x/blockchain-connection-error :district0x/watch-token-balances]]}}))
+    (when (seq addresses)
+      {:web3-fx.blockchain/balances
+       {:web3 (:web3 db)
+        :watch? true
+        :blockchain-filter-opts "latest"
+        :db-path [:district0x/watch-token-balances]
+        :addresses addresses
+        :instance instance
+        :dispatches [[:district0x/address-balance-loaded token-code]
+                     [:district0x/blockchain-connection-error :district0x/watch-token-balances]]}})))
+
+(reg-event-fx
+  :district0x/load-token-balances
+  interceptors
+  (fn [{:keys [db]} [{:keys [:addresses :instance :token-code]}]]
+    (when (seq addresses)
+      {:web3-fx.blockchain/balances
+       {:web3 (:web3 db)
+        :addresses addresses
+        :instance instance
+        :dispatches [[:district0x/address-balance-loaded token-code]
+                     [:district0x/blockchain-connection-error :district0x/watch-token-balances]]}})))
 
 (reg-event-fx
   :district0x/watch-my-token-balances
   interceptors
-  (fn [{:keys [db]} args]
+  (fn [{:keys [db]} [args]]
     (let [addresses (:my-addresses db)]
       {:dispatch [:district0x/watch-token-balances (assoc args :addresses addresses)]})))
 
 (reg-event-fx
   :district0x/address-balance-loaded
   interceptors
-  (fn [{:keys [db]} [token balance address]]
+  (fn [{:keys [db]} [token balance address :as a]]
     {:db (assoc-in db [:balances address token] (u/big-num->ether balance))}))
 
 (reg-event-fx
@@ -353,7 +383,7 @@
                       args
                       [transaction-opts
                        [:district0x.log/info]
-                       [:district0x.log/error :district0x.contract/state-fn-call]
+                       [:district0x.log/error contract-method]
                        [:district0x.form/receipt-loaded (:gas transaction-opts) (assoc opts :fn-key contract-method)]])]}})))
 
 (reg-event-fx

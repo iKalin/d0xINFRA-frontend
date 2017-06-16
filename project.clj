@@ -1,4 +1,4 @@
-(defproject district0x "0.1.0"
+(defproject district0x "0.1.1"
   :description "district0x Frontend Library"
   :url "https://github.com/district0x/d0xINFRA-frontend"
   :license {:name "Eclipse Public License"
@@ -12,13 +12,12 @@
                  [cljsjs/react-highlight "1.0.5-0" :exclusions [cljsjs/react cljsjs/react-dom]]
                  [cljsjs/react-truncate "2.0.3-0"]
                  [cljsjs/react-ultimate-pagination "0.8.0-0" :exclusions [cljsjs/react cljsjs/react-dom]]
-                 [cljsjs/solidity-sha3 "0.4.1-0"]
                  [com.andrewmcveigh/cljs-time "0.4.0"]
                  [com.cemerick/url "0.1.1"]
                  [day8.re-frame/http-fx "0.1.3"]
                  [kibu/pushy "0.3.6"]
                  [madvas.re-frame/google-analytics-fx "0.1.0"]
-                 [madvas.re-frame/web3-fx "0.1.4"]
+                 [madvas.re-frame/web3-fx "0.1.8"]
                  [madvas/reagent-patched "0.6.1" :exclusions [cljsjs/react cljsjs/react-dom]]
                  [medley "0.8.3"]
                  [org.clojure/clojure "1.9.0-alpha10"]

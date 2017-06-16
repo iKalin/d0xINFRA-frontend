@@ -40,7 +40,7 @@
 
 (defn eq? [x y & [base]]
   (when x
-    (.eq x base)))
+    (.eq x y base)))
 
 (defn floor [x]
   (when x

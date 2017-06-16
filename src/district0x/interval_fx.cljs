@@ -3,7 +3,7 @@
     [cljs.spec :as s]
     [district0x.utils :as u]
     [medley.core :as medley]
-    [re-frame.core :as re-frame :refer [reg-event-db reg-fx]]))
+    [re-frame.core :as re-frame :refer [reg-event-db reg-fx dispatch]]))
 
 (s/def ::dispatch (s/coll-of keyword))
 (s/def ::ms int?)

@@ -6,7 +6,6 @@
 (s/def ::load-node-addresses? boolean?)
 (s/def ::web3 (complement nil?))
 (s/def ::node-url string?)
-(s/def ::provides-web3? boolean?)
 (s/def ::contracts-not-found? boolean?)
 (s/def ::handler keyword?)
 (s/def ::route-params (s/map-of keyword? (some-fn number? string?)))
@@ -46,7 +45,6 @@
                              ::load-node-addresses?
                              ::my-addresses
                              ::node-url
-                             ::provides-web3?
                              ::smart-contracts
                              ::snackbar
                              ::web3]
@@ -57,7 +55,6 @@
 
 (def default-db
   {:web3 nil
-   :provides-web3? false
    :contracts-not-found? false
    :window-width-size (u/get-window-width-size js/window.innerWidth)
    :snackbar {:open? false

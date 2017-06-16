@@ -9,7 +9,6 @@
     [goog.string :as gstring]
     [goog.string.format]
     [medley.core :as medley]
-    [reagent.core :as r]
     [cemerick.url :as url]))
 
 (defn get-window-width-size [width]
@@ -40,8 +39,12 @@
 (defn wei->eth [x]
   (web3/from-wei x :ether))
 
+(def wei->eth->num (comp js/parseFloat bn/->number wei->eth))
+
 (defn eth->wei [x]
   (web3/to-wei x :ether))
+
+(def eth->wei->num (comp js/parseInt eth->wei))
 
 (def big-num->ether (comp bn/->number wei->eth))
 
@@ -53,18 +56,6 @@
 
 (defn not-neg? [x]
   (not (neg? x)))
-
-(defn parse-props-children [props children]
-  (if (map? props)
-    [props children]
-    [nil (concat [props] children)]))
-
-(defn create-with-default-props [component default-props]
-  (fn [props & children]
-    (let [[props children] (parse-props-children props children)]
-      (into [] (concat
-                 [component (r/merge-props default-props props)]
-                 children)))))
 
 (defn truncate
   "Truncate a string with suffix (ellipsis by default) if it is
@@ -210,3 +201,20 @@
            max-length))
      (constantly true))))
 
+(defn color-emphasize [& args]
+  (apply js/MaterialUIUtils.colorManipulator.emphasize args))
+
+(defn color-lighten [& args]
+  (apply js/MaterialUIUtils.colorManipulator.lighten args))
+
+(defn color-darken [& args]
+  (apply js/MaterialUIUtils.colorManipulator.darken args))
+
+(defn chan? [x]
+  (instance? cljs.core.async.impl.channels/ManyToManyChannel x))
+
+(defn error? [x]
+  (instance? js/Error x))
+
+(defn tx-address? [x]
+  (and (string? x) (= (count x) 66)))

@@ -1,7 +1,6 @@
 (ns district0x.subs
   (:require
     [cljs-web3.core :as web3]
-    [contribution.utils :as u]
     [goog.string :as gstring]
     [goog.string.format]
     [medley.core :as medley]
@@ -21,8 +20,8 @@
 (reg-sub
   :district0x/can-submit-into-blockchain?
   (fn [db _]
-    (and (or (:provides-web3? db) (:load-node-addresses? db))
-         (:active-address db))))
+    (boolean (and (or (:provides-web3? db) (:load-node-addresses? db))
+                  (:active-address db)))))
 
 (reg-sub
   :db/active-page
@@ -69,22 +68,27 @@
 (reg-sub
   :district0x/window-width-size
   (fn [db]
-    (:district0x/window-width-size db)))
+    (:window-width-size db)))
 
 (reg-sub
   :district0x/window-lg-width?
   (fn [db]
-    (= (:district0x/window-width-size db) 3)))
+    (= (:window-width-size db) 3)))
+
+(reg-sub
+  :district0x/window-md-lg-width?
+  (fn [db]
+    (>= (:window-width-size db) 2)))
 
 (reg-sub
   :district0x/window-xs-width?
   (fn [db]
-    (= (:district0x/window-width-size db) 0)))
+    (= (:window-width-size db) 0)))
 
 (reg-sub
   :district0x/window-xs-sm-width?
   (fn [db]
-    (<= (:district0x/window-width-size db) 1)))
+    (<= (:window-width-size db) 1)))
 
 
 
