@@ -32,15 +32,16 @@
                              (when (aget res "address")
                                (go (>! res-ch res))))])))
 
-(defn state-call! [instance method {:keys [:from :value :args :gas :value-ether
+(defn state-call! [instance method {:keys [:value :gas :args :value-ether
                                            :on-success :on-error :callback]
-                                    :or {value 0 gas 4000000}}]
+                                    :as opts}]
   (apply contract-call instance method (concat args
-                                               [{:gas gas
-                                                 :from from
-                                                 :value (if value-ether
-                                                          (web3/to-wei value-ether :ether)
-                                                          value)}
+                                               [(merge
+                                                  {:value 0 :gas 4000000}
+                                                  (dissoc opts :value-ether :on-success :on-error :callback :args)
+                                                  {:value (if value-ether
+                                                            (web3/to-wei value-ether :ether)
+                                                            value)})
                                                 (when (or on-success on-error callback)
                                                   (fn [err res]
                                                     (when (and err on-error)
