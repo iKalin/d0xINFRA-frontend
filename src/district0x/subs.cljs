@@ -66,6 +66,11 @@
     (:snackbar db)))
 
 (reg-sub
+  :district0x/dialog
+  (fn [db]
+    (:dialog db)))
+
+(reg-sub
   :district0x/window-width-size
   (fn [db]
     (:window-width-size db)))

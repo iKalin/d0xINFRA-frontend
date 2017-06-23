@@ -187,6 +187,38 @@
              (assoc :active-address active-address))})))
 
 (reg-event-fx
+  :district0x/deploy-contract
+  interceptors
+  (fn [{:keys [db]} [{:keys [:address-index :contract-key :dispatch :args :gas] :as params
+                      :or {gas 4500000}}]]
+    (let [contract (get-contract db contract-key)]
+      {:web3-fx.blockchain/fns
+       {:web3 (:web3 db)
+        :fns [(concat
+                [web3-eth/contract-new
+                 (:abi contract)]
+                args
+                [{:gas gas
+                  :data (:bin contract)
+                  :from (if address-index
+                          (nth (:my-addresses db) address-index)
+                          (:active-address db))}
+                 [:district0x/contract-deployed (select-keys params [:contract-key :dispatch])]
+                 [:district0x.log/error :district0x/deploy-contract contract-key]])]}})))
+
+(reg-event-fx
+  :district0x/contract-deployed
+  [interceptors (inject-cofx :localstorage)]
+  (fn [{:keys [db localstorage]} [{:keys [:dispatch :contract-key]} instance]]
+    (when-let [contract-address (aget instance "address")]
+      (console :log contract-key " deployed at " contract-address)
+      (merge
+        {:db (update-in db [:smart-contracts contract-key] merge {:address contract-address :instance instance})
+         :localstorage (assoc-in localstorage [:smart-contracts contract-key] {:address contract-address})}
+        (when dispatch
+          {:dispatch dispatch})))))
+
+(reg-event-fx
   :district0x/watch-eth-balances
   interceptors
   (fn [{:keys [db]} [{:keys [:addresses :on-address-balance-loaded]

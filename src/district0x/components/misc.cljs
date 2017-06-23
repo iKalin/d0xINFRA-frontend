@@ -1,6 +1,8 @@
 (ns district0x.components.misc
   (:require
     [cljs-react-material-ui.reagent :as ui]
+    [cljsjs.react-flexbox-grid]
+    [clojure.set :as set]
     [district0x.components.utils :refer [current-component-mui-theme parse-props-children create-with-default-props]]
     [district0x.utils :as u]
     [re-frame.core :refer [subscribe dispatch]]
@@ -64,4 +66,16 @@
       :frameBorder 0
       :allowFullScreen true}
      props)])
+
+(defn main-panel []
+  (let [snackbar (subscribe [:district0x/snackbar])
+        dialog (subscribe [:district0x/dialog])]
+    (fn [{:keys [:mui-theme]} content]
+      [ui/mui-theme-provider
+       {:mui-theme mui-theme}
+       (into content
+             [[ui/snackbar (-> @snackbar
+                             (set/rename-keys {:open? :open}))]
+              [ui/dialog (-> @dialog
+                           (set/rename-keys {:open? :open}))]])])))
 
