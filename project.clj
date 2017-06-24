@@ -1,4 +1,4 @@
-(defproject district0x "0.1.4"
+(defproject district0x "0.1.5"
   :description "district0x Frontend Library"
   :url "https://github.com/district0x/d0xINFRA-frontend"
   :license {:name "Eclipse Public License"
@@ -14,6 +14,7 @@
                  [cljsjs/react-ultimate-pagination "0.8.0-0" :exclusions [cljsjs/react cljsjs/react-dom]]
                  [com.andrewmcveigh/cljs-time "0.4.0"]
                  [com.cemerick/url "0.1.1"]
+                 [day8.re-frame/async-flow-fx "0.0.6"]
                  [day8.re-frame/http-fx "0.1.3"]
                  [kibu/pushy "0.3.6"]
                  [madvas.re-frame/google-analytics-fx "0.1.0"]

@@ -189,7 +189,7 @@
 (reg-event-fx
   :district0x/deploy-contract
   interceptors
-  (fn [{:keys [db]} [{:keys [:address-index :contract-key :dispatch :args :gas] :as params
+  (fn [{:keys [db]} [{:keys [:address-index :contract-key :on-success :args :gas] :as params
                       :or {gas 4500000}}]]
     (let [contract (get-contract db contract-key)]
       {:web3-fx.blockchain/fns
@@ -203,20 +203,20 @@
                   :from (if address-index
                           (nth (:my-addresses db) address-index)
                           (:active-address db))}
-                 [:district0x/contract-deployed (select-keys params [:contract-key :dispatch])]
+                 [:district0x/contract-deployed (select-keys params [:contract-key :on-success])]
                  [:district0x.log/error :district0x/deploy-contract contract-key]])]}})))
 
 (reg-event-fx
   :district0x/contract-deployed
   [interceptors (inject-cofx :localstorage)]
-  (fn [{:keys [db localstorage]} [{:keys [:dispatch :contract-key]} instance]]
+  (fn [{:keys [db localstorage]} [{:keys [:on-success :contract-key]} instance]]
     (when-let [contract-address (aget instance "address")]
       (console :log contract-key " deployed at " contract-address)
       (merge
         {:db (update-in db [:smart-contracts contract-key] merge {:address contract-address :instance instance})
          :localstorage (assoc-in localstorage [:smart-contracts contract-key] {:address contract-address})}
-        (when dispatch
-          {:dispatch dispatch})))))
+        (when on-success
+          {:dispatch on-success})))))
 
 (reg-event-fx
   :district0x/watch-eth-balances
@@ -362,18 +362,18 @@
 (reg-event-fx
   :district0x.form/receipt-loaded
   [interceptors log-used-gas]
-  (fn [{:keys [db]} [{:keys [:receipt-dispatch :receipt-dispatch-n :form-data :form-key :error-dispatch]
-                      :or {error-dispatch [:district0x.snackbar/show-transaction-error]}}
+  (fn [{:keys [db]} [{:keys [:on-receipt :on-receipt-n :form-data :form-key :on-error]
+                      :or {:on-error [:district0x.snackbar/show-transaction-error]}}
                      {:keys [success?]}]]
     (merge
       (when form-key
         {:db (assoc-in db [form-key :loading?] false)})
-      (when (and success? receipt-dispatch)
-        {:dispatch (conj receipt-dispatch form-data)})
-      (when (and success? receipt-dispatch-n)
-        {:dispatch-n (map #(conj % form-data) receipt-dispatch-n)})
+      (when (and success? on-receipt)
+        {:dispatch (conj on-receipt form-data)})
+      (when (and success? on-receipt-n)
+        {:dispatch-n (map #(conj % form-data) on-receipt-n)})
       (when-not success?
-        {:dispatch error-dispatch}))))
+        {:dispatch :on-error}))))
 
 (reg-event-db
   :district0x.form/start-loading
