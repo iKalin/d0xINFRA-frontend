@@ -31,32 +31,36 @@
 (s/def ::load-conversion-rates-interval (s/nilable int?))
 (s/def ::blockchain-connection-error? boolean?)
 (s/def ::balances (s/map-of u/address? (s/map-of keyword? u/not-neg?)))
+(s/def ::ui-disabled? boolean?)
 
 (s/def ::gas-limit pos?)
 (s/def ::errors (s/coll-of keyword?))
 (s/def ::data (s/keys))
-(s/def ::submit-form (s/keys :req-un [::loading? ::gas-limit]
-                             :opt-un [::errors ::data]))
+(s/def ::submit-form (s/keys :req-un [::loading?]
+                             :opt-un [::errors ::data ::gas-limit]))
+(s/def ::only-default-kw (partial = :default))
 
 (s/def ::db (s/keys :req-un [::active-address
                              ::blockchain-connection-error?
                              ::contracts-not-found?
                              ::dialog
-                             ::load-node-addresses?
                              ::my-addresses
                              ::node-url
                              ::smart-contracts
                              ::snackbar
-                             ::web3]
+                             ::web3
+                             ::ui-disabled?]
                     :opt-un [::active-page
                              ::balances
                              ::conversion-rates
-                             ::load-conversion-rates-interval]))
+                             ::load-conversion-rates-interval
+                             ::load-node-addresses?]))
 
 (def default-db
   {:web3 nil
    :contracts-not-found? false
    :window-width-size (u/get-window-width-size js/window.innerWidth)
+   :ui-disabled? false
    :snackbar {:open? false
               :message ""
               :auto-hide-duration 5000

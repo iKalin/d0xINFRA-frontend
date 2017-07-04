@@ -69,13 +69,16 @@
 
 (defn main-panel []
   (let [snackbar (subscribe [:district0x/snackbar])
-        dialog (subscribe [:district0x/dialog])]
+        dialog (subscribe [:district0x/dialog])
+        ui-disabled? (subscribe [:district0x/ui-disabled?])]
     (fn [{:keys [:mui-theme]} content]
       [ui/mui-theme-provider
        {:mui-theme mui-theme}
-       (into content
-             [[ui/snackbar (-> @snackbar
-                             (set/rename-keys {:open? :open}))]
-              [ui/dialog (-> @dialog
-                           (set/rename-keys {:open? :open}))]])])))
+       (if-not @ui-disabled?
+         (into content
+               [[ui/snackbar (-> @snackbar
+                               (set/rename-keys {:open? :open}))]
+                [ui/dialog (-> @dialog
+                             (set/rename-keys {:open? :open}))]])
+         [:div "UI is disabled"])])))
 

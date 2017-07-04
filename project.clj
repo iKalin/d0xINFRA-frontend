@@ -1,4 +1,4 @@
-(defproject district0x "0.1.5"
+(defproject district0x "0.1.6"
   :description "district0x Frontend Library"
   :url "https://github.com/district0x/d0xINFRA-frontend"
   :license {:name "Eclipse Public License"
@@ -18,7 +18,7 @@
                  [day8.re-frame/http-fx "0.1.3"]
                  [kibu/pushy "0.3.6"]
                  [madvas.re-frame/google-analytics-fx "0.1.0"]
-                 [madvas.re-frame/web3-fx "0.1.8"]
+                 [madvas.re-frame/web3-fx "0.1.10"]
                  [madvas/reagent-patched "0.6.1" :exclusions [cljsjs/react cljsjs/react-dom]]
                  [medley "0.8.3"]
                  [org.clojure/clojure "1.9.0-alpha10"]

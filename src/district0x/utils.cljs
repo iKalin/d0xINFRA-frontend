@@ -183,6 +183,18 @@
             (get m arg-key)))
         keys-order))
 
+(defn map-selected-keys [f keyseq m]
+  (let [keyseq (set keyseq)]
+    (into {}
+          (map (fn [[k v]]
+                 (if (contains? keyseq k)
+                   (f [k v])
+                   [k v]))
+               m))))
+
+(defn map-vals-selected-keys [f keyseq m]
+  (map-selected-keys #(vec [(first %) (f (second %))]) keyseq m))
+
 (def http-url-pattern #"(?i)^(?:(?:https?)://)(?:\S+(?::\S*)?@)?(?:(?!(?:10|127)(?:\.\d{1,3}){3})(?!(?:169\.254|192\.168)(?:\.\d{1,3}){2})(?!172\.(?:1[6-9]|2\d|3[0-1])(?:\.\d{1,3}){2})(?:[1-9]\d?|1\d\d|2[01]\d|22[0-3])(?:\.(?:1?\d{1,2}|2[0-4]\d|25[0-5])){2}(?:\.(?:[1-9]\d?|1\d\d|2[0-4]\d|25[0-4]))|(?:(?:[a-z\u00a1-\uffff0-9]-*)*[a-z\u00a1-\uffff0-9]+)(?:\.(?:[a-z\u00a1-\uffff0-9]-*)*[a-z\u00a1-\uffff0-9]+)*(?:\.(?:[a-z\u00a1-\uffff]{2,}))\.?)(?::\d{2,5})?(?:[/?#]\S*)?$")
 
 (defn http-url? [x & [{:keys [:allow-empty?]}]]
@@ -216,5 +228,7 @@
 (defn error? [x]
   (instance? js/Error x))
 
-(defn tx-address? [x]
-  (and (string? x) (= (count x) 66)))
+(defn sha3? [x]
+  (and (string? x)
+       (= (count x) 66)
+       (string/starts-with? x "0x")))

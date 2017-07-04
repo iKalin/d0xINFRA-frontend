@@ -32,6 +32,11 @@
                              (when (aget res "address")
                                (go (>! res-ch res))))])))
 
+(defn deploy-contract-ch! [opts & args]
+  (let [ch (chan)]
+    (apply deploy-contract! (assoc opts :res-ch ch) args)
+    ch))
+
 (defn state-call! [instance method {:keys [:value :gas :args :value-ether
                                            :on-success :on-error :callback]
                                     :as opts}]

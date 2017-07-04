@@ -29,6 +29,11 @@
 
 (re-frame-storage/reg-co-fx! :contribution {:fx :localstorage :cofx :localstorage})
 
+(defn reg-empty-event-fx [id]
+  (reg-event-fx
+    id
+    (constantly nil)))
+
 (defn check-and-throw
   [a-spec db]
   (when goog.DEBUG
@@ -90,10 +95,15 @@
 (defn initialize-db [default-db localstorage]
   (let [web3 (if constants/provides-web3?
                (aget js/window "web3")
-               (web3/create-web3 (:node-url default-db)))]
+               (web3/create-web3 (:node-url default-db)))
+        load-node-addresses? (if (and (nil? (:load-node-addresses? default-db))
+                                      (string/includes? (:node-url default-db) "localhost"))
+                               true
+                               (:load-node-addresses? default-db))]
     (as-> default-db db
           (merge-with #(if (map? %1) (merge-with merge %1 %2) %2) db localstorage)
-          (assoc db :web3 web3))))
+          (assoc db :web3 web3)
+          (assoc db :load-node-addresses? load-node-addresses?))))
 
 (reg-event-fx
   :district0x/initialize
@@ -191,20 +201,18 @@
   interceptors
   (fn [{:keys [db]} [{:keys [:address-index :contract-key :on-success :args :gas] :as params
                       :or {gas 4500000}}]]
-    (let [contract (get-contract db contract-key)]
+    (let [contract (get-contract db contract-key)
+          tx-opts {:gas gas
+                   :data (:bin contract)
+                   :from (if address-index
+                           (nth (:my-addresses db) address-index)
+                           (:active-address db))}]
       {:web3-fx.blockchain/fns
        {:web3 (:web3 db)
-        :fns [(concat
-                [web3-eth/contract-new
-                 (:abi contract)]
-                args
-                [{:gas gas
-                  :data (:bin contract)
-                  :from (if address-index
-                          (nth (:my-addresses db) address-index)
-                          (:active-address db))}
-                 [:district0x/contract-deployed (select-keys params [:contract-key :on-success])]
-                 [:district0x.log/error :district0x/deploy-contract contract-key]])]}})))
+        :fns [{:f web3-eth/contract-new
+               :args (concat [(:abi contract)] args [tx-opts])
+               :on-success [:district0x/contract-deployed (select-keys params [:contract-key :on-success])]
+               :on-error [:district0x.log/error :district0x/deploy-contract contract-key]}]}})))
 
 (reg-event-fx
   :district0x/contract-deployed
@@ -321,102 +329,128 @@
 (reg-event-db
   :district0x.form/set-value
   interceptors
-  (fn [db [form-key field-key value & [validator]]]
+  (fn [db [form-key form-id field-key value & [validator]]]
     (let [validator (cond
                       (fn? validator) validator
                       (boolean? validator) (constantly validator)
                       :else validator)]
       (cond-> db
-        true (assoc-in [form-key :data field-key] value)
+        true (assoc-in [form-key form-id :data field-key] value)
 
         (or (and validator (validator value))
             (nil? validator))
-        (update-in [form-key :errors] (comp set (partial remove #{field-key})))
+        (update-in [form-key form-id :errors] (comp set (partial remove #{field-key})))
 
         (and validator (not (validator value)))
-        (update-in [form-key :errors] conj field-key)))))
+        (update-in [form-key form-id :errors] conj field-key)))))
 
 (reg-event-fx
   :district0x.form/submit
   interceptors
-  (fn [{:keys [db]} [{:keys [:form-key :fn-key :fn-args :form-data :value :address] :as props}]]
-    (let [form (get db form-key)
+  (fn [{:keys [db]} [{:keys [:form-key :fn-key :fn-args :form-data :value :address :wei-args :form-id] :as props
+                      :or {form-id :default}}]]
+    (let [form (merge (get-in db [form-key :default])
+                      (get-in db [form-key form-id]))
           {:keys [:web3 :active-address]} db
           {:keys [:gas-limit]} form]
       {:web3-fx.contract/state-fns
        {:web3 web3
         :db-path [:contract/state-fns]
-        :fns [(concat
-                [(get-instance db (keyword (namespace fn-key)))
-                 fn-key]
-                (u/map->vec form-data fn-args)
-                [(merge
-                   {:gas gas-limit
-                    :from (or address active-address)}
-                   (when value
-                     {:value (js/parseInt value)}))
-                 [:district0x.form/start-loading form-key]
-                 [:district0x.log/error :district0x.form/submit fn-key form-data value address]
-                 [:district0x.form/receipt-loaded gas-limit props]])]}})))
+        :fns [{:instance (get-instance db (keyword (namespace fn-key)))
+               :method fn-key
+               :args (-> (u/map-vals-selected-keys u/eth->wei wei-args form-data)
+                       (u/map->vec fn-args))
+               :tx-opts (merge
+                          {:gas gas-limit
+                           :from (or address active-address)}
+                          (when value
+                            {:value (js/parseInt value)}))
+               :on-success [:district0x.form/start-loading form-key form-id]
+               :on-error [:district0x.log/error :district0x.form/submit fn-key form-data value address]
+               :on-tx-receipt [:district0x.form/receipt-loaded gas-limit props]}]}})))
 
 (reg-event-fx
   :district0x.form/receipt-loaded
   [interceptors log-used-gas]
-  (fn [{:keys [db]} [{:keys [:on-receipt :on-receipt-n :form-data :form-key :on-error]
-                      :or {:on-error [:district0x.snackbar/show-transaction-error]}}
+  (fn [{:keys [db]} [{:keys [:on-tx-receipt :on-tx-receipt-n :form-data :form-key :form-id :on-error]
+                      :or {on-error [:district0x.snackbar/show-transaction-error]
+                           form-id :default}}
                      {:keys [success?]}]]
     (merge
       (when form-key
-        {:db (assoc-in db [form-key :loading?] false)})
-      (when (and success? on-receipt)
-        {:dispatch (conj on-receipt form-data)})
-      (when (and success? on-receipt-n)
-        {:dispatch-n (map #(conj % form-data) on-receipt-n)})
+        {:district0x/dispatch [:district0x.form/stop-loading form-key form-id]})
+      (when (and success? on-tx-receipt)
+        {:dispatch (conj on-tx-receipt form-data)})
+      (when (and success? on-tx-receipt-n)
+        {:dispatch-n (map #(conj % form-data) on-tx-receipt-n)})
       (when-not success?
         {:dispatch :on-error}))))
 
 (reg-event-db
   :district0x.form/start-loading
   interceptors
-  (fn [db [form-key]]
-    (assoc-in db [form-key :loading?] true)))
+  (fn [db [form-key form-id]]
+    (assoc-in db [form-key (or form-id :default) :loading?] true)))
 
 (reg-event-db
   :district0x.form/stop-loading
   interceptors
-  (fn [db [form-key]]
-    (assoc-in db [form-key :loading?] false)))
+  (fn [db [form-key form-id]]
+    (assoc-in db [form-key (or form-id :default) :loading?] false)))
 
 (reg-event-db
   :district0x.form/add-error
   interceptors
-  (fn [db [form-key error]]
-    (update-in db [form-key :errors] conj error)))
+  (fn [db [form-key form-id error]]
+    (update-in db [form-key form-id :errors] conj error)))
 
 (reg-event-db
   :district0x.form/remove-error
   interceptors
-  (fn [db [form-key error]]
-    (update-in db [form-key :errors] (comp set (partial remove #{error})))))
+  (fn [db [form-key form-id error]]
+    (update-in db [form-key form-id :errors] (comp set (partial remove #{error})))))
+
+(reg-event-fx
+  :district0x.contract/event-watch-once
+  interceptors
+  (fn [{:keys [:db]} [{:keys [:contract-key :on-success :on-error] :as event-params
+                       :or {on-error [:district0x.log/error]}}]]
+    (let [event-id (str "event-listen-once-" (rand-int 99999))
+          db-path [:web3-event-filters]]
+      {:web3-fx.contract/events
+       {:db-path db-path
+        :events [(merge event-params
+                        {:instance (get-instance db contract-key)
+                         :event-id event-id
+                         :on-success [:district0x.contract/event-stop-watching-once db-path event-id on-success]
+                         :on-error [:district0x.contract/event-stop-watching-once db-path event-id on-error]})]}})))
+
+(reg-event-fx
+  :district0x.contract/event-stop-watching-once
+  interceptors
+  (fn [{:keys [:db]} [db-path event-id dispatch & args]]
+    {:web3-fx.contract/events-stop-watching {:db-path db-path
+                                             :event-ids [event-id]}
+     :dispatch (vec (concat (u/ensure-vec dispatch) args))}))
 
 
 (reg-event-fx
   :district0x.contract/state-fn-call
   interceptors
-  (fn [{:keys [db]} [{:keys [:contract-key :contract-method :args :transaction-opts] :as opts}]]
-    (let [transaction-opts (merge {:gas 3800000
-                                   :from (:active-address db)}
-                                  transaction-opts)]
+  (fn [{:keys [db]} [{:keys [:contract-key :method :args :tx-opts] :as opts}]]
+    (let [tx-opts (merge {:gas 3800000
+                          :from (:active-address db)}
+                         tx-opts)]
       {:web3-fx.contract/state-fns
        {:web3 (:web3 db)
         :db-path [:contract/state-fns]
-        :fns [(concat [(get-instance db contract-key)
-                       contract-method]
-                      args
-                      [transaction-opts
-                       [:district0x.log/info]
-                       [:district0x.log/error contract-method]
-                       [:district0x.form/receipt-loaded (:gas transaction-opts) (assoc opts :fn-key contract-method)]])]}})))
+        :fns [{:instance (get-instance db contract-key)
+               :method method
+               :args args
+               :tx-opts tx-opts
+               :on-success [:district0x.log/info]
+               :on-error [:district0x.log/error method]
+               :on-tx-receipt [:district0x.form/receipt-loaded (:gas tx-opts) (assoc opts :fn-key method)]}]}})))
 
 (reg-event-fx
   :district0x.contract/constant-fn-call
@@ -535,3 +569,10 @@
   interceptors
   (fn []
     {:window/scroll-to-top true}))
+
+(reg-event-fx
+  :district0x/set-ui-disabled
+  interceptors
+  (fn [{:keys [:db]} [disabled?]]
+    {:db (assoc db :ui-disabled? disabled?)}))
+

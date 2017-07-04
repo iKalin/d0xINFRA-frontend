@@ -95,5 +95,10 @@
   (fn [db]
     (<= (:window-width-size db) 1)))
 
+(reg-sub
+  :district0x/ui-disabled?
+  (fn [db _]
+    (:ui-disabled? db)))
+
 
 
