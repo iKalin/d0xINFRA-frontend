@@ -1,11 +1,12 @@
 (ns district0x.subs
   (:require
+    [cljs-time.core :as t]
     [cljs-web3.core :as web3]
+    [district0x.constants :as constants]
     [goog.string :as gstring]
     [goog.string.format]
     [medley.core :as medley]
-    [re-frame.core :refer [reg-sub]]
-    [cljs-time.core :as t]))
+    [re-frame.core :refer [reg-sub]]))
 
 (reg-sub
   :district0x/my-addresses
@@ -20,7 +21,7 @@
 (reg-sub
   :district0x/can-submit-into-blockchain?
   (fn [db _]
-    (boolean (and (or (:provides-web3? db) (:load-node-addresses? db))
+    (boolean (and (or constants/provides-web3? (:load-node-addresses? db))
                   (:active-address db)))))
 
 (reg-sub
