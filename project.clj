@@ -1,9 +1,9 @@
-(defproject district0x "0.1.8"
+(defproject district0x "0.1.9"
   :description "district0x Frontend Library"
   :url "https://github.com/district0x/d0xINFRA-frontend"
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
-  :dependencies [[akiroz.re-frame/storage "0.1.1"]
+  :dependencies [[akiroz.re-frame/storage "0.1.2"]
                  [bidi "2.1.1"]
                  [cljs-ajax "0.5.8"]
                  [cljs-react-material-ui "0.2.43"]
