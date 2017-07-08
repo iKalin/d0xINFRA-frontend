@@ -1,6 +1,6 @@
 (ns district0x.interval-fx
   (:require
-    [cljs.spec :as s]
+    [cljs.spec.alpha :as s]
     [district0x.utils :as u]
     [medley.core :as medley]
     [re-frame.core :as re-frame :refer [reg-event-db reg-fx dispatch]]))

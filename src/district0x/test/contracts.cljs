@@ -10,7 +10,7 @@
     [cljs-web3.personal :as web3-personal]
     [cljs-web3.shh :as web3-shh]
     [cljs.core.async :refer [<! >! chan]]
-    [cljs.spec :as s]
+    [cljs.spec.alpha :as s]
     [cljs.test :refer-macros [deftest is testing run-tests use-fixtures async]]
     [district0x.big-number :as bn]
     [district0x.utils :as u])

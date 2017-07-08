@@ -2,7 +2,7 @@
   (:require
     [bidi.bidi :as bidi]
     [cemerick.url :as url]
-    [cljs.spec :as s]
+    [cljs.spec.alpha :as s]
     [district0x.utils :as u]
     [goog.events :as events]
     [medley.core :as medley]

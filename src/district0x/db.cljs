@@ -1,5 +1,5 @@
 (ns district0x.db
-  (:require [cljs.spec :as s]
+  (:require [cljs.spec.alpha :as s]
             [district0x.utils :as u]
             [re-frame.core :refer [dispatch]]))
 

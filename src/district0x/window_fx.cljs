@@ -1,6 +1,6 @@
 (ns district0x.window-fx
   (:require
-    [cljs.spec :as s]
+    [cljs.spec.alpha :as s]
     [goog.events :as events]
     [re-frame.core :as re-frame :refer [reg-fx console reg-event-db reg-event-fx]]))
 
