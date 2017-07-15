@@ -232,3 +232,6 @@
   (and (string? x)
        (= (count x) 66)
        (string/starts-with? x "0x")))
+
+(defn provides-web3? []
+  (boolean (aget js/window "web3")))

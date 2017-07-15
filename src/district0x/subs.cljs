@@ -2,7 +2,7 @@
   (:require
     [cljs-time.core :as t]
     [cljs-web3.core :as web3]
-    [district0x.constants :as constants]
+    [district0x.utils :as u]
     [goog.string :as gstring]
     [goog.string.format]
     [medley.core :as medley]
@@ -21,7 +21,7 @@
 (reg-sub
   :district0x/can-submit-into-blockchain?
   (fn [db _]
-    (boolean (and (or constants/provides-web3? (:load-node-addresses? db))
+    (boolean (and (or (u/provides-web3?) (:load-node-addresses? db))
                   (:active-address db)))))
 
 (reg-sub

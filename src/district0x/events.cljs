@@ -15,7 +15,6 @@
     [day8.re-frame.async-flow-fx]
     [day8.re-frame.http-fx]
     [district0x.big-number :as bn]
-    [district0x.constants :as constants]
     [district0x.dispatch-fx]
     [district0x.interval-fx]
     [district0x.utils :as u]
@@ -93,7 +92,7 @@
                                                                    :success?]))]})))))
 
 (defn initialize-db [default-db localstorage]
-  (let [web3 (if constants/provides-web3?
+  (let [web3 (if (u/provides-web3?)
                (aget js/window "web3")
                (web3/create-web3 (:node-url default-db)))
         load-node-addresses? (if (and (nil? (:load-node-addresses? default-db))
@@ -127,7 +126,7 @@
   :district0x/load-my-addresses
   interceptors
   (fn [{:keys [db]}]
-    (if constants/provides-web3?
+    (if (u/provides-web3?)
       {:dispatch [:district0x/my-addresses-loaded (web3-eth/accounts (:web3 db))]}
       (if (:load-node-addresses? db)
         {:web3-fx.blockchain/fns
