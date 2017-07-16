@@ -1,4 +1,4 @@
-(defproject district0x "0.1.11"
+(defproject district0x "0.1.12"
   :description "district0x Frontend Library"
   :url "https://github.com/district0x/d0xINFRA-frontend"
   :license {:name "Eclipse Public License"
