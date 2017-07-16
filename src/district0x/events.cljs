@@ -24,7 +24,6 @@
     [madvas.re-frame.google-analytics-fx]
     [madvas.re-frame.web3-fx]
     [medley.core :as medley]
-    [print.foo :require-macros true]
     [re-frame.core :as re-frame :refer [reg-event-db reg-event-fx inject-cofx path trim-v after debug reg-fx console dispatch]]))
 
 (re-frame-storage/reg-co-fx! :contribution {:fx :localstorage :cofx :localstorage})
@@ -128,18 +127,19 @@
   :district0x/load-my-addresses
   interceptors
   (fn [{:keys [db]}]
-    (merge
-      (when (and (not (:web3 db))
-                 (u/provides-web3?))
-        {:db (assoc db :web3 (aget js/window "web3"))})
-      (if (or (:load-node-addresses? db)
-              (u/provides-web3?))
-        {:web3-fx.blockchain/fns
-         {:web3 (:web3 db)
-          :fns [[web3-eth/accounts
-                 [:district0x/my-addresses-loaded]
-                 [:district0x/blockchain-connection-error :initialize]]]}}
-        {:dispatch [:district0x/my-addresses-loaded []]}))))
+    (let [new-db (if (u/provides-web3?)
+                   (assoc db :web3 (aget js/window "web3"))
+                   db)]
+      (merge
+        {:db new-db}
+        (if (or (:load-node-addresses? db)
+                (u/provides-web3?))
+          {:web3-fx.blockchain/fns
+           {:web3 (:web3 new-db)
+            :fns [[web3-eth/accounts
+                   [:district0x/my-addresses-loaded]
+                   [:district0x/blockchain-connection-error :initialize]]]}}
+          {:dispatch [:district0x/my-addresses-loaded []]})))))
 
 (reg-event-fx
   :district0x/load-smart-contracts
