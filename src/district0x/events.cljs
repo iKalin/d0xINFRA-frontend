@@ -351,7 +351,7 @@
 (reg-event-fx
   :district0x.form/submit
   interceptors
-  (fn [{:keys [db]} [{:keys [:form-key :fn-key :fn-args :form-data :value :address :wei-args :form-id] :as props
+  (fn [{:keys [db]} [{:keys [:form-key :fn-key :fn-args :form-data :value :address :wei-args :form-id :tx-opts] :as props
                       :or {form-id :default}}]]
     (let [form (merge (get-in db [form-key :default])
                       (get-in db [form-key form-id]))
@@ -368,7 +368,8 @@
                           {:gas gas-limit
                            :from (or address active-address)}
                           (when value
-                            {:value (js/parseInt value)}))
+                            {:value (js/parseInt value)})
+                          tx-opts)
                :on-success [:district0x.form/start-loading form-key form-id]
                :on-error [:district0x.log/error :district0x.form/submit fn-key form-data value address]
                :on-tx-receipt [:district0x.form/receipt-loaded gas-limit props]}]}})))
