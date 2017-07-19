@@ -136,27 +136,32 @@
                 (u/provides-web3?))
           {:web3-fx.blockchain/fns
            {:web3 (:web3 new-db)
-            :fns [[web3-eth/accounts
-                   [:district0x/my-addresses-loaded]
-                   [:district0x/default-web3-fallback {:dispatch [:district0x/my-addresses-loaded []]}]]]}}
+            :fns [{:f web3-eth/accounts
+                   :on-success [:district0x/my-addresses-loaded]
+                   :on-error [:district0x/dispatch-n [[:district0x/set-fallback-web3]
+                                                      [:district0x/my-addresses-loaded []]]]}]}}
           {:dispatch [:district0x/my-addresses-loaded []]})))))
 
-(defn recreate-contract-instances [db web3]
-  (update db :smart-contracts
-          (partial merge-with merge)
-          (into {}
-                (for [[contract-key {:keys [:instance :abi :address]}] (:smart-contracts db)]
-                  {contract-key {:instance (web3-eth/contract-at web3 abi address)}}))))
+(reg-event-fx
+  :district0x/set-fallback-web3
+  interceptors
+  (fn [{:keys [db]}]
+    {:db (assoc db :web3 (web3/create-web3 (:node-url db)))
+     :dispatch [:district0x/recreate-contract-instances]}))
 
 (reg-event-fx
-  :district0x/default-web3-fallback
+  :district0x/recreate-contract-instances
   interceptors
-  (fn [{:keys [db]} [{:keys [:dispatch]}]]
-    (let [web3 (web3/create-web3 (:node-url db))]
-      {:db (-> db
-             (assoc :web3 web3)
-             (recreate-contract-instances web3))
-       :dispatch dispatch})))
+  (fn [{:keys [db]}]
+    {:db (update db :smart-contracts
+                 (partial merge-with merge)
+                 (into {}
+                       (for [[contract-key {:keys [:instance :abi :address]}] (:smart-contracts db)]
+                         {contract-key {:instance (when abi
+                                                    (web3-eth/contract-at (:web3 db) abi address))}})))
+     :dispatch [:district0x/contract-instances-recreated]}))
+
+(reg-empty-event-fx :district0x/contract-instances-recreated)
 
 (reg-event-fx
   :district0x/load-smart-contracts
@@ -598,3 +603,14 @@
   (fn [{:keys [:db]} [disabled?]]
     {:db (assoc db :ui-disabled? disabled?)}))
 
+(reg-event-fx
+  :district0x/async-flow
+  interceptors
+  (fn [_ [params]]
+    {:async-flow params}))
+
+(reg-event-fx
+  :district0x/dispatch-n
+  interceptors
+  (fn [_ [params]]
+    {:dispatch-n params}))
