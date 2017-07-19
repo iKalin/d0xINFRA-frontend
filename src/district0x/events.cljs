@@ -138,8 +138,25 @@
            {:web3 (:web3 new-db)
             :fns [[web3-eth/accounts
                    [:district0x/my-addresses-loaded]
-                   [:district0x/blockchain-connection-error :initialize]]]}}
+                   [:district0x/default-web3-fallback {:dispatch [:district0x/my-addresses-loaded []]}]]]}}
           {:dispatch [:district0x/my-addresses-loaded []]})))))
+
+(defn recreate-contract-instances [db web3]
+  (update db :smart-contracts
+          (partial merge-with merge)
+          (into {}
+                (for [[contract-key {:keys [:instance :abi :address]}] (:smart-contracts db)]
+                  {contract-key {:instance (web3-eth/contract-at web3 abi address)}}))))
+
+(reg-event-fx
+  :district0x/default-web3-fallback
+  interceptors
+  (fn [{:keys [db]} [{:keys [:dispatch]}]]
+    (let [web3 (web3/create-web3 (:node-url db))]
+      {:db (-> db
+             (assoc :web3 web3)
+             (recreate-contract-instances web3))
+       :dispatch dispatch})))
 
 (reg-event-fx
   :district0x/load-smart-contracts
