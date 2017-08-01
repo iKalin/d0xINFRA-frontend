@@ -93,7 +93,7 @@
 
 (defn initialize-db [default-db localstorage]
   (let [web3 (if (u/provides-web3?)
-               (aget js/window "web3")
+               (new (aget js/window "Web3") (web3/current-provider (aget js/window "web3")))
                (web3/create-web3 (:node-url default-db)))
         load-node-addresses? (if (and (nil? (:load-node-addresses? default-db))
                                       (string/includes? (:node-url default-db) "localhost"))
