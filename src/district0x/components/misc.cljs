@@ -14,6 +14,8 @@
 
 (def row (create-with-default-props row-with-cols {:style {:margin-left 0 :margin-right 0}}))
 
+(defmulti page identity)
+
 (defn paper []
   (let [xs-width? (subscribe [:district0x/window-xs-width?])
         connection-error? (subscribe [:district0x/blockchain-connection-error?])]
@@ -66,6 +68,18 @@
       :frameBorder 0
       :allowFullScreen true}
      props)])
+
+(defn a []
+  (let [routes (subscribe [:district0x/routes])]
+    (fn [{:keys [:route-params :route] :as props} body]
+      [:a
+       (r/merge-props
+         {:href (when-not (some nil? (vals route-params))
+                  (u/path-for {:route route
+                               :route-params route-params
+                               :routes @routes}))
+          :on-click #(.stopPropagation %)}
+         (dissoc props :route-params :route)) body])))
 
 (defn main-panel []
   (let [snackbar (subscribe [:district0x/snackbar])

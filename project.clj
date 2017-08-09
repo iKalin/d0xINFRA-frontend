@@ -1,4 +1,4 @@
-(defproject district0x "0.1.19"
+(defproject district0x "0.1.20"
   :description "district0x Frontend Library"
   :url "https://github.com/district0x/d0xINFRA-frontend"
   :license {:name "Eclipse Public License"
@@ -23,4 +23,27 @@
                  [medley "0.8.3"]
                  [org.clojure/clojurescript "1.9.671"]
                  [print-foo-cljs "2.0.3"]
-                 [re-frame "0.9.4" :exclusions [reagent]]])
+                 [re-frame "0.9.4" :exclusions [reagent]]]
+
+  :figwheel {:server-port 6599}
+
+  :profiles {:dev
+             {:dependencies [[org.clojure/clojure "1.8.0"]
+                             [binaryage/devtools "0.9.4"]
+                             [com.cemerick/piggieback "0.2.1"]
+                             [figwheel-sidecar "0.5.12"]
+                             [org.clojure/tools.nrepl "0.2.13"]]
+              :plugins [[lein-figwheel "0.5.12"]]
+              :source-paths ["src"]
+              :resource-paths ["resources"]
+              :cljsbuild {:builds [{:id "test-ui"
+                                    :source-paths ["src" "test"]
+                                    :figwheel {:on-jsload "district0x.ui.test/main"}
+                                    :compiler {:main "district0x.ui.test"
+                                               :output-to "resources/public/js/compiled/app.js"
+                                               :output-dir "resources/public/js/compiled/out"
+                                               :asset-path "js/compiled/out"
+                                               :source-map-timestamp true
+                                               :preloads [print.foo.preloads.devtools]
+                                               :closure-defines {goog.DEBUG true}
+                                               :external-config {:devtools/config {:features-to-install :all}}}}]}}})

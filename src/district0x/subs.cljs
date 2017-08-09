@@ -25,9 +25,20 @@
                   (:active-address db)))))
 
 (reg-sub
-  :db/active-page
+  :district0x/active-page
   (fn [db _]
     (:active-page db)))
+
+(reg-sub
+  :district0x/route-params
+  :<- [:db/active-page]
+  (fn [active-page]
+    (:route-params active-page)))
+
+(reg-sub
+  :district0x/routes
+  (fn [db _]
+    (:routes db)))
 
 (reg-sub
   :district0x/conversion-rates

@@ -17,6 +17,7 @@
     [district0x.big-number :as bn]
     [district0x.dispatch-fx]
     [district0x.interval-fx]
+    [district0x.spec-interceptors :refer [validate-args conform-args validate-db]]
     [district0x.utils :as u]
     [district0x.window-fx]
     [goog.string :as gstring]
@@ -33,16 +34,7 @@
     id
     (constantly nil)))
 
-(defn check-and-throw
-  [a-spec db]
-  (when goog.DEBUG
-    (when-not (s/valid? a-spec db)
-      (.error js/console (s/explain-str a-spec db))
-      (throw "DB Spec check failed"))))
-
-(def check-spec-interceptor (after (partial check-and-throw :district0x.db/db)))
-
-(def interceptors [trim-v check-spec-interceptor])
+(def interceptors [trim-v (validate-db :district0x.db/db)])
 
 (defn get-contract [db key]
   (get-in db [:smart-contracts key]))
@@ -65,6 +57,9 @@
    :response-format (if (= code-type :abi) (ajax/json-response-format) (ajax/text-response-format))
    :on-success on-success
    :on-failure on-failure})
+
+(defn localhost-node? [{:keys [:node-url]}]
+  (string/includes? node-url "localhost"))
 
 (def log-used-gas
   (re-frame/->interceptor
@@ -92,7 +87,8 @@
                                                                    :success?]))]})))))
 
 (defn initialize-db [default-db localstorage]
-  (let [web3 (if (u/provides-web3?)
+  (let [web3 (if (and (u/provides-web3?)
+                      (not (localhost-node? default-db)))
                (new (aget js/window "Web3") (web3/current-provider (aget js/window "web3")))
                (web3/create-web3 (:node-url default-db)))
         load-node-addresses? (if (and (nil? (:load-node-addresses? default-db))
@@ -127,7 +123,7 @@
   :district0x/load-my-addresses
   interceptors
   (fn [{:keys [db]}]
-    (let [new-db (if (u/provides-web3?)
+    (let [new-db (if (and (u/provides-web3?) (not (localhost-node? db)))
                    (assoc db :web3 (aget js/window "web3"))
                    db)]
       (merge
@@ -141,6 +137,18 @@
                    :on-error [:district0x/dispatch-n [[:district0x/set-fallback-web3]
                                                       [:district0x/my-addresses-loaded []]]]}]}}
           {:dispatch [:district0x/my-addresses-loaded []]})))))
+
+(reg-event-fx
+  :district0x/set-active-page
+  interceptors
+  (fn [{:keys [db]} [{:keys [:handler] :as match}]]
+    (merge
+      {:db (-> db
+             (assoc :active-page match)
+             (assoc :drawer-open? false))
+       :ga/page-view [(u/current-location-hash)]}
+      (when-not (= handler (:handler (:active-page db)))
+        {:window/scroll-to-top true}))))
 
 (reg-event-fx
   :district0x/set-fallback-web3
@@ -580,10 +588,15 @@
     {:location/set-query args}))
 
 (reg-event-fx
-  :district0x.location/set-hash
+  :district0x.location/nav-to
   interceptors
-  (fn [{:keys [db]} args]
-    {:location/set-hash args}))
+  (fn [{:keys [:db]} [route route-params]]
+    {:location/nav-to [route route-params (:routes db)]}))
+
+(reg-fx
+  :district0x.location/add-to-query
+  (fn [_ args]
+    (:location/add-to-query args)))
 
 (reg-event-fx
   :district0x.window/resized

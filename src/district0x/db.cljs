@@ -32,6 +32,7 @@
 (s/def ::blockchain-connection-error? boolean?)
 (s/def ::balances (s/map-of u/address? (s/map-of keyword? u/not-neg?)))
 (s/def ::ui-disabled? boolean?)
+(s/def ::routes (some-fn vector? map?))
 
 (s/def ::gas-limit pos?)
 (s/def ::errors (s/coll-of keyword?))
@@ -49,7 +50,8 @@
                              ::smart-contracts
                              ::snackbar
                              ::web3
-                             ::ui-disabled?]
+                             ::ui-disabled?
+                             ::routes]
                     :opt-un [::active-page
                              ::balances
                              ::conversion-rates

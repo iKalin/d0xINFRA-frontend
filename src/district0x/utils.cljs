@@ -1,5 +1,6 @@
 (ns district0x.utils
   (:require
+    [bidi.bidi :as bidi]
     [cemerick.url :as url]
     [cljs-time.coerce :refer [to-date-time to-long to-epoch to-local-date-time]]
     [cljs-time.core :as t :refer [date-time to-default-time-zone]]
@@ -35,6 +36,12 @@
 
 (defn current-url []
   (url/url (string/replace (.-href js/location) "#" "")))
+
+(defn path-for [{:keys [:route :route-params :routes]}]
+  (str "#" (medley/mapply bidi/path-for routes route route-params)))
+
+(defn match-current-location [routes]
+  (bidi/match-route routes (current-location-hash)))
 
 (defn wei->eth [x]
   (web3/from-wei x :ether))
